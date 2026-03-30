@@ -1,0 +1,201 @@
+import time, torch, os, sys
+
+dir_path = os.path.dirname(os.path.realpath(__file__))
+os.chdir(dir_path)
+sys.path.append("../../")
+from src import dataio, training_hcp_LHS, loss_fun, modules
+domain_0 = dict(
+    domain_name=0,
+    geometry=dict(
+        starts=[0.0, 0.0, 0.0],
+        ends=[1.0, 1.0, 0.55],
+        num_intervals=[20, 20, 11],
+        num_pde_points=9292,
+        #num_pde_points=4000,
+        num_single_bc_points=500,
+    ),
+    conductivity_dist=dict(uneven_conductivity=False, background_conductivity=1),
+    power=dict(
+        bc=True,
+        num_power_points_per_volume=2,
+        num_power_points_per_surface=500,
+        num_power_points_per_cell=5,
+        power_map=dict(
+            power_0=dict(
+                type="volumetric_power",
+                location=dict(starts=(0, 0, 5), ends=(20, 20, 6)),
+                params=dict(k=0.2, value=1, weight=1),
+            )
+        ),
+    ),
+    #power=dict(bc=False),
+    front=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    back=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    left=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    right=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    bottom=dict(bc=True, type="htc", params=dict(dim=2, k=0.2, direction=-1, weight=1)),
+    top=dict(bc=True, type="adiabatics", params=dict(dim=2, weight=1)),
+    node=dict(root=True, leaf=False,children=dict(top=[1,2,3,4])),
+    parameterized=dict(
+        variable=True,
+        param_space=dict(bottom=dict(k={"param_range": (0.1, 0.3), "type": "continuous"})),
+    ),
+)
+
+domain_1 = dict(
+    domain_name=1,
+    geometry=dict(
+        starts=[0.2, 0.2, 0.55],
+        ends=[0.45, 0.45, 0.75],
+        num_intervals=[10, 10, 4],
+        num_pde_points=1205,
+        #num_pde_points=600,
+        num_single_bc_points=100,
+    ),
+    conductivity_dist=dict(uneven_conductivity=False, background_conductivity=1),
+    power=dict(bc=False),
+    front=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    back=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    left=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    right=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    bottom=dict(bc=True, type="interface", params=dict(dim=2, weight=0.01)),
+    top=dict(bc=True, type="htc", params=dict(dim=2, k=0.2, direction=1, weight=1)),
+    node=dict(root=False, leaf=True),
+    parameterized=dict(variable=False),
+)
+
+domain_2 = dict(
+    domain_name=2,
+    geometry=dict(
+        starts=[0.2, 0.55, 0.55],
+        ends=[0.45, 0.8, 0.75],
+        num_intervals=[10, 10, 4],
+        num_pde_points=1205,
+        #num_pde_points=600,
+        num_single_bc_points=100,
+    ),
+    conductivity_dist=dict(uneven_conductivity=False, background_conductivity=1),
+    power=dict(bc=False),
+    front=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    back=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    left=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    right=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    bottom=dict(bc=True, type="interface", params=dict(dim=2, weight=0.01)),
+    top=dict(bc=True, type="htc", params=dict(dim=2, k=0.2, direction=1, weight=1)),
+    node=dict(root=False, leaf=True),
+    parameterized=dict(variable=False),
+)
+
+domain_3 = dict(
+    domain_name=3,
+    geometry=dict(
+        starts=[0.55, 0.2, 0.55],
+        ends=[0.8, 0.45, 0.75],
+        num_intervals=[10, 10, 4],
+        num_pde_points=1205,
+        #num_pde_points=600,
+        num_single_bc_points=100,
+    ),
+    conductivity_dist=dict(uneven_conductivity=False, background_conductivity=1),
+    power=dict(bc=False),
+    front=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    back=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    left=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    right=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    bottom=dict(bc=True, type="interface", params=dict(dim=2, weight=0.01)),
+    top=dict(bc=True, type="htc", params=dict(dim=2, k=0.2, direction=1, weight=1)),
+    node=dict(root=False, leaf=True),
+    parameterized=dict(variable=False),
+)
+
+domain_4 = dict(
+    domain_name=4,
+    geometry=dict(
+        starts=[0.55, 0.55, 0.55],
+        ends=[0.8, 0.8, 0.75],
+        num_intervals=[10, 10, 4],
+        num_pde_points=1205,
+        #num_pde_points=600,
+        num_single_bc_points=100,
+    ),
+    conductivity_dist=dict(uneven_conductivity=False, background_conductivity=1),
+    power=dict(bc=False),
+    front=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    back=dict(bc=True, type="adiabatics", params=dict(dim=1, weight=1)),
+    left=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    right=dict(bc=True, type="adiabatics", params=dict(dim=0, weight=1)),
+    bottom=dict(bc=True, type="interface", params=dict(dim=2, weight=0.01)),
+    top=dict(bc=True, type="htc", params=dict(dim=2, k=0.2, direction=1, weight=1)),
+    node=dict(root=False, leaf=True),
+    parameterized=dict(variable=False),
+)
+domains_list = [domain_0, domain_1, domain_2, domain_3, domain_4]
+
+global_params = {
+    "loss_fun_type": "norm",
+    "num_params_per_epoch": 1,
+    "pde_params": dict(type="pde", params=dict(k=0.2, weight=1)),
+}
+
+print(
+    "Starting training single-case PINN: complex geometry and volumetric power defined in the middle layer"
+)
+
+for i, domain in enumerate(domains_list):
+    print("domain %d:" % i, domain)
+
+device = "cuda:0"
+model = modules.DeepONet(
+    trunk_in_features=3,
+    trunk_hidden_features=128,
+    branch_in_features=1,
+    branch_hidden_features=20,
+    inner_prod_features=50,
+    num_branch_hidden_layers=3,
+    num_trunk_hidden_layers=3,
+    nonlinearity="silu",
+    freq=torch.pi,
+    std=1,
+    freq_trainable=True,
+    device=device,
+)
+
+print("The model used for this case:", model)
+
+dataset = dataio.CuboidGeometryDataIO(domains_list, global_params)
+loss_fn = loss_fun.loss_fun_geometry_init(dataset)
+val_func = training_hcp_LHS.val_fn_init(False)
+
+root_path = "./log"
+experiment_name = "10000-chiplet-lhs"
+model_dir = os.path.join(root_path, experiment_name)
+lr_decay = True
+epochs_til_decay = 500
+epochs_til_val = 50
+epochs = 10000
+lr = 1e-3
+epochs_til_checkpoints = 200
+
+tic = time.time()
+training_hcp_LHS.train(
+    model=model,
+    dataset=dataset,
+    epochs=epochs,
+    lr=lr,
+    epochs_til_checkpoints=epochs_til_checkpoints,
+    model_dir=model_dir,
+    loss_fn=loss_fn,
+    val_fn=val_func,
+    lr_decay=lr_decay,
+    epochs_til_decay=epochs_til_decay,
+    epochs_til_val=epochs_til_val,
+    device=device,
+    deeponet=True,
+)
+toc = time.time()
+print("total training time:", toc - tic)
+
+
+
+
+
